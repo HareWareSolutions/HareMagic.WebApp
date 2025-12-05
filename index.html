@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HareMagic - Forja das Magias da HareWare</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Definindo a cor Brand como o Azul Escuro solicitado #004C99
+            brand: {
+              50: '#eef6ff',
+              100: '#d9eaff',
+              200: '#bce0ff',
+              300: '#8ecaff',
+              400: '#59aaff',
+              500: '#2d86ff',
+              600: '#004C99', // A cor principal solicitada
+              700: '#003d7a',
+              800: '#003366',
+              900: '#001a33',
+              950: '#000d1a',
+            },
+            // Definindo a cor Neon como o Ciano solicitado #00FFFF
+            neon: {
+              DEFAULT: '#00FFFF',
+              dim: 'rgba(0, 255, 255, 0.1)',
+              glow: 'rgba(0, 255, 255, 0.5)',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'pulse-neon': 'pulse-neon 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            'pulse-neon': {
+              '0%, 100%': { opacity: 1, boxShadow: '0 0 10px #00FFFF' },
+              '50%': { opacity: .7, boxShadow: '0 0 20px #00FFFF' },
+            }
+          }
+        },
+      },
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #020617;
+      color: #f8fafc;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #004C99;
+      border-radius: 3px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #00FFFF;
+    }
+
+    /* Utilitário para texto neon */
+    .text-neon-glow {
+      color: #00FFFF;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
