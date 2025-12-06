@@ -97,7 +97,7 @@ const App: React.FC = () => {
             <img
               src={SYSTEM_LOGO_URL}
               alt={`${APP_NAME} Logo`}
-              className="w-7 h-7 object-contain"
+              className="w-12 h-12 object-contain"
             />
             <h1 className="text-xl font-bold text-white tracking-tight flex gap-1">
               Hare<span className="text-neon-glow">Magic</span>

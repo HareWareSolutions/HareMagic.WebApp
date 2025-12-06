@@ -63,7 +63,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <img
             src={SYSTEM_LOGO_URL}
             alt={`${APP_NAME} Logo`}
-            className="w-14 h-14 object-contain drop-shadow-md"
+            className="w-24 h-24 object-contain drop-shadow-md"
           />
           <h1 className="text-3xl font-bold text-white tracking-tight">Hare<span className="text-neon-glow">Magic</span></h1>
           <p className="text-slate-400 mt-2 text-center">Inteligência Artificial para sua marca</p>
