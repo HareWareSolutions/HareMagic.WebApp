@@ -52,7 +52,7 @@ function checkAndResetMonthlyQuota(user) {
 // Routes
 
 // Get User (Login/Fetch)
-app.post('/api/user', (req, res) => {
+app.post('/user', (req, res) => {
     const { email, defaultPlan } = req.body;
 
     if (!email) {
@@ -104,7 +104,7 @@ app.post('/api/user', (req, res) => {
 });
 
 // Increment Usage
-app.post('/api/usage/increment', (req, res) => {
+app.post('/usage/increment', (req, res) => {
     const { email } = req.body;
 
     if (!email) {
