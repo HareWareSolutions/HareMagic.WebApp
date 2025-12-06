@@ -10,9 +10,10 @@ interface LoginProps {
 
 // Mock credentials database linked to Plans
 const ALLOWED_USERS = [
-  { email: 'admin@haremagic.com', password: 'admin', plan: 'oraculo' as PlanTier },
-  { email: 'design@haremagic.com', password: 'design', plan: 'encantamento' as PlanTier },
-  { email: 'demo@haremagic.com', password: '123456', plan: 'talisma' as PlanTier }
+  { email: 'giordano@hareware.com.br', password: 'HareWare@2025@Magic', plan: 'oraculo' as PlanTier },
+  { email: 'viviane@vivianeturismo.com.br', password: 'viviane@2025', plan: 'talisma' as PlanTier },
+  { email: 'diego@seupao.com.br', password: 'seupao@2025', plan: 'conjurador' as PlanTier },
+  { email: 'demo@haremagic.com', password: '123456', plan: 'encantamento' as PlanTier }
 ];
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
