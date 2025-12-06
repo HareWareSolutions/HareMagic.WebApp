@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      allowedHosts: ['8afb6a2f3adb.ngrok-free.app'],
+      allowedHosts: ['haremagic.hareware.com.br'],
       proxy: {
         '/api': {
           target: 'http://localhost:3002',
