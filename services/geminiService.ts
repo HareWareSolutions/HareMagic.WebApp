@@ -3,13 +3,13 @@ import { GoogleGenAI } from "@google/genai";
 import { AspectRatio, CreativeAsset } from "../types";
 
 // Função auxiliar para obter instância da IA (importante recriar para pegar chave nova se usuário trocar)
-const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAIClient = () => new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
 
 // Map UI ratios to API supported ratios
 const IMAGE_RATIO_MAP: Record<string, string> = {
   [AspectRatio.SQUARE]: "1:1",
   [AspectRatio.STORY]: "9:16",
-  [AspectRatio.PORTRAIT]: "3:4", 
+  [AspectRatio.PORTRAIT]: "3:4",
 };
 
 export const generateBrandPost = async (
