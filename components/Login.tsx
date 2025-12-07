@@ -13,7 +13,8 @@ const ALLOWED_USERS = [
   { email: 'giordano@hareware.com.br', password: 'HareWare@2025@Magic', plan: 'oraculo' as PlanTier },
   { email: 'viviane@vivianeturismo.com.br', password: 'viviane@2025', plan: 'talisma' as PlanTier },
   { email: 'diego@seupao.com.br', password: 'seupao@2025', plan: 'conjurador' as PlanTier },
-  { email: 'demo@haremagic.com', password: '123456', plan: 'encantamento' as PlanTier }
+  { email: 'demo@haremagic.com', password: '123456', plan: 'encantamento' as PlanTier },
+  { email: 'hangarmixshop@gmail.com', password: 'mix@2025', plan: 'oraculo' as PlanTier },
 ];
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
