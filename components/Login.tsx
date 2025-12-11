@@ -18,6 +18,7 @@ const ALLOWED_USERS = [
   { email: 'teste@teste.com.br', password: '123456', plan: 'oraculo' as PlanTier },
   { email: 'amandabarbosafilhadedeus@gmail.com', password: 'amanda@2025', plan: 'encantamento' as PlanTier },
   { email: 'leoocosta1209@gmail.com', password: 'leo@2025', plan: 'conjurador' as PlanTier },
+  { email: 'deboraalmeida2397@gmail.com', password: 'taurus@2025', plan: 'encantamento' as PlanTier },
 ];
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
