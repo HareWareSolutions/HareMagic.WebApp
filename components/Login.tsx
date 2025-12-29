@@ -1,60 +1,37 @@
-
 import React, { useState } from 'react';
 import { SYSTEM_LOGO_URL, APP_NAME } from '../constants';
 import { dbService } from '../services/dbService';
-import { PlanTier, UserProfile } from '../types';
+import { UserProfile } from '../types';
 
 interface LoginProps {
   onLogin: (user: UserProfile) => void;
 }
 
-// Mock credentials database linked to Plans
-const ALLOWED_USERS = [
-  { email: 'giordano@hareware.com.br', password: 'HareWare@2025@Magic', plan: 'oraculo' as PlanTier },
-  { email: 'viviane@vivianeturismo.com.br', password: 'viviane@2025', plan: 'talisma' as PlanTier },
-  { email: 'diego@seupao.com.br', password: 'seupao@2025', plan: 'conjurador' as PlanTier },
-  { email: 'demo@haremagic.com', password: '123456', plan: 'encantamento' as PlanTier },
-  { email: 'hangarmixshop@gmail.com', password: 'mix@2025', plan: 'oraculo' as PlanTier },
-  { email: 'teste@teste.com.br', password: '123456', plan: 'oraculo' as PlanTier },
-  { email: 'amandabarbosafilhadedeus@gmail.com', password: 'amanda@2025', plan: 'encantamento' as PlanTier },
-  { email: 'leoocosta1209@gmail.com', password: 'leo@2025', plan: 'conjurador' as PlanTier },
-  { email: 'deboraalmeida2397@gmail.com', password: 'taurus@2025', plan: 'encantamento' as PlanTier },
-  { email: 'oquemedernatelhacanal@gmail.com', password: 'daniela@2025', plan: 'oraculo' as PlanTier },
-  { email: 'contato@sbmmkt.com.br', password: 'sbm@2025', plan: 'encantamento' as PlanTier },
-];
-
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Simulate API delay
-    setTimeout(async () => {
-      const validCreds = ALLOWED_USERS.find(
-        user => user.email === email && user.password === password
-      );
-
-      if (validCreds) {
-        // Inicializa/Busca usuário no "Banco de Dados"
-        // Passamos o plano definido nas credenciais para simular a assinatura
-        try {
-          const userProfile = await dbService.getUser(validCreds.email, validCreds.plan);
-          onLogin(userProfile);
-        } catch (e) {
-          setError('Erro ao conectar com o banco de dados.');
-          setLoading(false);
-        }
+    try {
+      if (isRegistering) {
+        const user = await dbService.register(email, password);
+        onLogin(user);
       } else {
-        setError('Credenciais inválidas. Tente novamente.');
-        setLoading(false);
+        const user = await dbService.login(email, password);
+        onLogin(user);
       }
-    }, 1000);
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,7 +42,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-neon/10 blur-[80px]"></div>
       </div>
 
-      <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8 relative z-10">
+      <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8 relative z-10 transition-all duration-300">
         <div className="flex flex-col items-center mb-8">
           <img
             src={SYSTEM_LOGO_URL}
@@ -73,7 +50,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             className="w-24 h-24 object-contain drop-shadow-md"
           />
           <h1 className="text-3xl font-bold text-white tracking-tight">Hare<span className="text-neon-glow">Magic</span></h1>
-          <p className="text-slate-400 mt-2 text-center">Inteligência Artificial para sua marca</p>
+          <p className="text-slate-400 mt-2 text-center text-sm">
+            {isRegistering ? 'Crie sua conta e comece a criar' : 'Inteligência Artificial para sua marca'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -84,7 +63,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           )}
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-300 ml-1">Email Corporativo</label>
+            <label className="text-sm font-medium text-slate-300 ml-1">Email</label>
             <input
               type="email"
               value={email}
@@ -93,7 +72,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 setError(null);
               }}
               required
-              placeholder="exemplo@empresa.com"
+              placeholder="seu@email.com"
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-slate-100 placeholder-slate-600 focus:ring-2 focus:ring-neon focus:border-neon outline-none transition-all shadow-inner"
             />
           </div>
@@ -108,6 +87,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
               required
               placeholder="••••••••"
+              minLength={6}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-slate-100 placeholder-slate-600 focus:ring-2 focus:ring-neon focus:border-neon outline-none transition-all shadow-inner"
             />
           </div>
@@ -123,13 +103,30 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Acessando...</span>
+                <span>Processando...</span>
               </>
             ) : (
-              <span>Entrar na Plataforma</span>
+              <span>{isRegistering ? 'Criar Conta Grátis' : 'Entrar na Plataforma'}</span>
             )}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-slate-500 text-sm">
+            {isRegistering ? 'Já tem uma conta?' : 'Ainda não tem acesso?'}
+            <button
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setError(null);
+                setEmail('');
+                setPassword('');
+              }}
+              className="ml-2 text-neon hover:text-brand-300 font-medium transition-colors hover:underline"
+            >
+              {isRegistering ? 'Fazer Login' : 'Criar Conta'}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );

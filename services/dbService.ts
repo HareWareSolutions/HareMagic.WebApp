@@ -3,19 +3,51 @@ import { PlanTier, UserProfile, PlanConfig } from "../types";
 
 // Configuração dos Planos (Regra de Negócio)
 export const PLANS: Record<PlanTier, PlanConfig> = {
-  talisma: { id: 'talisma', name: 'Talismã', limit: 3 },
+  talisma: { id: 'talisma', name: 'Talismã', limit: 5 },
   encantamento: { id: 'encantamento', name: 'Encantamento', limit: 20 },
   conjurador: { id: 'conjurador', name: 'Conjurador', limit: 50 },
   oraculo: { id: 'oraculo', name: 'Oráculo', limit: 100 },
 };
 
 export const dbService = {
-  // Chamado no Login: Busca ou Cria usuário e aplica a regra de data
-  getUser: async (email: string, defaultPlan: PlanTier = 'talisma'): Promise<UserProfile> => {
+  // Login
+  login: async (email: string, password: string): Promise<UserProfile> => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Login falhou.');
+    }
+
+    return response.json();
+  },
+
+  // Register
+  register: async (email: string, password: string): Promise<UserProfile> => {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Cadastro falhou.');
+    }
+
+    return response.json();
+  },
+
+  // Busca usuário atualizado
+  getUser: async (email: string): Promise<UserProfile> => {
     const response = await fetch('/api/user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, defaultPlan })
+      body: JSON.stringify({ email })
     });
 
     if (!response.ok) {
@@ -26,9 +58,6 @@ export const dbService = {
   },
 
   // Chamado antes de gerar: Verifica se tem saldo
-  // Note: This is now a check based on the last known state or a fresh fetch. 
-  // To be safe, we should probably fetch, but for UI responsiveness we might rely on local state 
-  // or do a quick fetch. Let's do a fetch to be accurate.
   canGenerate: async (email: string): Promise<boolean> => {
     try {
       const user = await dbService.getUser(email);

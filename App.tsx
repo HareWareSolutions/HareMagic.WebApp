@@ -120,6 +120,18 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            <a
+              href="https://wa.me/5519998033434?text=Olá,%20gostaria%20de%20fazer%20um%20upgrade%20no%20meu%20plano%20HareMagic!"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:flex items-center gap-2 text-sm font-bold text-neon hover:text-white transition-colors border border-neon/50 px-3 py-1.5 rounded-lg hover:bg-neon/10 group"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-neon group-hover:text-white transition-colors">
+                <path d="M12.004 2C6.476 2 2 6.48 2 12.012c0 1.95.534 3.793 1.472 5.399l-1.393 4.965 5.174-1.34c1.558.85 3.328 1.32 5.187 1.32 6.09 0 10.982-4.482 10.982-10 0-5.517-4.891-9.944-10.418-9.944zm6.65 14.22c-.276.77-1.356 1.405-1.892 1.432-.516.026-1.127-.145-3.929-1.246-3.414-1.34-5.636-4.9-5.807-5.13-.17-.23-1.385-1.844-1.385-3.517 0-1.673.869-2.5 1.176-2.84.308-.34.668-.426.892-.426.223 0 .446.01.637.018.202.01.475-.078.744.566.277.666.945 2.305 1.026 2.473.082.169.137.368.028.59-.11.222-.24.4-.383.568-.168.18-.352.32-.497.465-.13.13-.264.27-.116.53.15.258.656 1.087 1.411 1.761.966.862 1.777 1.146 2.031 1.258.254.112.404.095.555-.077.15-.17.65-0.758.823-1.018.172-.259.345-.216.577-.13.23.086 1.469.696 1.72 0.82.25.125.419.186.478.29.06.104.06 0.605-.216 1.374z" />
+              </svg>
+              Solicitar Upgrade
+            </a>
+
             <div className="h-8 w-[1px] bg-slate-800 mx-2 hidden md:block"></div>
 
             <button
