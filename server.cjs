@@ -7,6 +7,7 @@ const port = 3002;
 
 // Middleware
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'dist'))); // Serve static files
 
 // Database Setup
 const dbPath = path.resolve(__dirname, 'database.sqlite');
@@ -242,6 +243,11 @@ app.post('/api/usage/increment', (req, res) => {
             }
         );
     });
+});
+
+// Fallback to React App for non-API routes (SPA)
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Start Server
