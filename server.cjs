@@ -216,6 +216,14 @@ app.post('/api/user', (req, res) => {
     });
 });
 
+// Configuração dos Planos para Validação no Servidor
+const PLANS = {
+    talisma: { limit: 5 },
+    encantamento: { limit: 20 },
+    conjurador: { limit: 50 },
+    oraculo: { limit: 100 },
+};
+
 // Increment Usage
 app.post('/api/usage/increment', (req, res) => {
     const { email } = req.body;
@@ -228,8 +236,17 @@ app.post('/api/usage/increment', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'User not found' });
 
-        // Check reset first (just in case)
+        // Check reset first
         let user = checkAndResetMonthlyQuota(row);
+
+        // Server-side Limit Validation
+        const planLimit = PLANS[user.plan]?.limit || 5; // Default to Talismã if unknown
+
+        if (user.generationsUsed >= planLimit) {
+            return res.status(403).json({
+                error: `Limite do plano atingido no servidor (${user.generationsUsed}/${planLimit}). Upgrade necessário.`
+            });
+        }
 
         // Increment
         user.generationsUsed += 1;
