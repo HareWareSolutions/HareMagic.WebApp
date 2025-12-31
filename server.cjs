@@ -262,8 +262,13 @@ app.post('/usage/increment', (req, res) => {
     });
 });
 
+// Explicit Root Route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 // Fallback to React App for non-API routes (SPA)
-app.get(/.*/, (req, res) => {
+app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
