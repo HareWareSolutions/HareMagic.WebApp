@@ -268,7 +268,7 @@ app.get('/', (req, res) => {
 });
 
 // Fallback to React App for non-API routes (SPA)
-app.get('/:pathMatch(.*)*', (req, res) => {
+app.get(new RegExp('.*'), (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
