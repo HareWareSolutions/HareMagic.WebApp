@@ -9,6 +9,27 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
   oraculo: { id: 'oraculo', name: 'Oráculo', limit: 100 },
 };
 
+// Helper para tratar respostas
+const handleResponse = async (response: Response) => {
+  const contentType = response.headers.get("content-type");
+
+  // Verifica se é JSON
+  if (contentType && contentType.includes("application/json")) {
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro na requisição.');
+    }
+
+    return data;
+  } else {
+    // Se não for JSON, provavelmente é um erro de servidor ou proxy (HTML)
+    const text = await response.text();
+    console.error("Non-JSON response:", text.substring(0, 200)); // Log parcial para debug
+    throw new Error(`Erro de conexão com o servidor. (Status: ${response.status})`);
+  }
+};
+
 export const dbService = {
   // Login
   login: async (email: string, password: string): Promise<UserProfile> => {
@@ -17,13 +38,7 @@ export const dbService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Login falhou.');
-    }
-
-    return response.json();
+    return handleResponse(response);
   },
 
   // Register
@@ -33,13 +48,7 @@ export const dbService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Cadastro falhou.');
-    }
-
-    return response.json();
+    return handleResponse(response);
   },
 
   // Busca usuário atualizado
@@ -50,11 +59,12 @@ export const dbService = {
       body: JSON.stringify({ email })
     });
 
-    if (!response.ok) {
+    // fetch only throws on network failure, checks status inside handleResponse
+    try {
+      return await handleResponse(response);
+    } catch (e) {
       throw new Error('Failed to fetch user');
     }
-
-    return response.json();
   },
 
   // Chamado antes de gerar: Verifica se tem saldo
@@ -77,11 +87,11 @@ export const dbService = {
       body: JSON.stringify({ email })
     });
 
-    if (!response.ok) {
+    try {
+      return await handleResponse(response);
+    } catch (e) {
       throw new Error('Failed to increment usage');
     }
-
-    return response.json();
   },
 
   getPlanDetails: (planId: PlanTier): PlanConfig => {
