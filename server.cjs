@@ -93,7 +93,7 @@ function checkAndResetMonthlyQuota(user) {
 // Auth Routes
 
 // Register
-app.post('/auth/register', (req, res) => {
+app.post('/api/auth/register', (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -149,7 +149,7 @@ app.post('/auth/register', (req, res) => {
 });
 
 // Login
-app.post('/auth/login', (req, res) => {
+app.post('/api/auth/login', (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -179,7 +179,7 @@ app.post('/auth/login', (req, res) => {
 });
 
 // Get User (Sync/Reload - Protected-ish)
-app.post('/user', (req, res) => {
+app.post('/api/user', (req, res) => {
     const { email } = req.body;
 
     if (!email) {
@@ -225,7 +225,7 @@ const PLANS = {
 };
 
 // Increment Usage
-app.post('/usage/increment', (req, res) => {
+app.post('/api/usage/increment', (req, res) => {
     const { email } = req.body;
 
     if (!email) {
