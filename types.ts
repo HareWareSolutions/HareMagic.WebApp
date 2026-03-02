@@ -21,8 +21,19 @@ export interface GenerationRequest {
 export interface GenerationState {
   isGenerating: boolean;
   resultImage: string | null;
+  resultImages?: string[]; // Array of base64 images for the carousel
   error: string | null;
   progress?: string;
+}
+
+export enum PostType {
+  SINGLE = 'SINGLE',
+  CAROUSEL = 'CAROUSEL'
+}
+
+export interface CarouselSlide {
+  id: string;
+  instruction: string;
 }
 
 // Novos tipos para controle de Planos e Banco de Dados

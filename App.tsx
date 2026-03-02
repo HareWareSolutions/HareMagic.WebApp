@@ -4,8 +4,8 @@ import { AssetUploader } from './components/AssetUploader';
 import { ProductUploader } from './components/ProductUploader';
 import { Gallery } from './components/Gallery';
 import { RatioSelector } from './components/RatioSelector';
-import { AspectRatio, CreativeAsset, GenerationState, UserProfile } from './types';
-import { generateBrandPost } from './services/geminiService';
+import { AspectRatio, CreativeAsset, GenerationState, UserProfile, PostType, CarouselSlide } from './types';
+import { generateBrandPost, generateCarouselPost } from './services/geminiService';
 import { dbService, PLANS } from './services/dbService';
 import { Login } from './components/Login';
 import { SYSTEM_LOGO_URL, APP_NAME } from './constants';
@@ -17,6 +17,13 @@ const App: React.FC = () => {
   const [assets, setAssets] = useState<CreativeAsset[]>([]);
   const [productImage, setProductImage] = useState<CreativeAsset | null>(null);
   const [prompt, setPrompt] = useState<string>('');
+
+  const [postType, setPostType] = useState<PostType>(PostType.SINGLE);
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([
+    { id: '1', instruction: '' },
+    { id: '2', instruction: '' }
+  ]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   const [ratio, setRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [generationState, setGenerationState] = useState<GenerationState>({
@@ -41,6 +48,20 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddSlide = () => {
+    if (carouselSlides.length >= 10) return;
+    setCarouselSlides(prev => [...prev, { id: Date.now().toString(), instruction: '' }]);
+  };
+
+  const handleRemoveSlide = (id: string) => {
+    if (carouselSlides.length <= 2) return;
+    setCarouselSlides(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleUpdateSlide = (id: string, instruction: string) => {
+    setCarouselSlides(prev => prev.map(s => s.id === id ? { ...s, instruction } : s));
+  };
+
   const handleGenerate = async () => {
     if (!currentUser) return;
 
@@ -51,25 +72,51 @@ const App: React.FC = () => {
       if (assets.length === 0 && !productImage) {
         throw new Error("Adicione pelo menos uma imagem de identidade visual ou um produto.");
       }
-      if (!prompt.trim()) throw new Error("Adicione uma instrução no prompt.");
+      if (!prompt.trim()) throw new Error("Adicione uma instrução no prompt geral.");
       if (assets.length === 0) throw new Error("Adicione referências de estilo para ensinar a IA.");
 
-      // 2. Verificar Cota no Banco de Dados
-      const canGenerate = await dbService.canGenerate(currentUser.email);
-      if (!canGenerate) {
-        throw new Error(`Limite mensal do plano ${PLANS[currentUser.plan].name} atingido.`);
+      if (postType === PostType.CAROUSEL) {
+        const emptySlide = carouselSlides.find(s => !s.instruction.trim());
+        if (emptySlide) throw new Error("Adicione uma instrução específica para cada slide do carrossel.");
       }
 
-      setGenerationState(s => ({ ...s, progress: 'Analisando estilo e gerando imagem...' }));
+      // 2. Verificar Cota no Banco de Dados
+      const amountToDeduct = postType === PostType.CAROUSEL ? carouselSlides.length : 1;
+      const canGenerate = await dbService.canGenerate(currentUser.email, amountToDeduct);
+      if (!canGenerate) {
+        throw new Error(`Limite insuficiente. Esta ação requer ${amountToDeduct} geração(ões).`);
+      }
 
-      // 3. Gerar Imagem
-      const resultUrl = await generateBrandPost(assets, productImage, prompt, ratio);
+      setGenerationState(s => ({ ...s, progress: 'Analisando estilo e gerando imagem...', resultImages: [] }));
+      setCurrentSlideIndex(0);
+
+      let resultImageSingle: string | null = null;
+      let resultImagesArray: string[] = [];
+
+      // 3. Gerar Imagem(ns)
+      if (postType === PostType.SINGLE) {
+        resultImageSingle = await generateBrandPost(assets, productImage, prompt, ratio);
+      } else {
+        resultImagesArray = await generateCarouselPost(
+          assets,
+          productImage,
+          prompt,
+          carouselSlides,
+          ratio,
+          (progressMsg) => setGenerationState(s => ({ ...s, progress: progressMsg }))
+        );
+      }
 
       // 4. Consumir Crédito no Banco de Dados (Sucesso)
-      const updatedUser = await dbService.incrementUsage(currentUser.email);
+      const updatedUser = await dbService.incrementUsage(currentUser.email, amountToDeduct);
       setCurrentUser(updatedUser);
 
-      setGenerationState({ isGenerating: false, resultImage: resultUrl, error: null });
+      setGenerationState({
+        isGenerating: false,
+        resultImage: resultImageSingle,
+        resultImages: resultImagesArray,
+        error: null
+      });
 
     } catch (e: any) {
       setGenerationState({
@@ -205,15 +252,66 @@ const App: React.FC = () => {
 
               <div className="space-y-4 relative z-10">
                 <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Tipo de Post</label>
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => setPostType(PostType.SINGLE)}
+                      className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all border ${postType === PostType.SINGLE ? 'bg-brand-600 border-neon/50 text-white shadow-[0_0_10px_rgba(0,255,255,0.2)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                      Post Único
+                    </button>
+                    <button
+                      onClick={() => setPostType(PostType.CAROUSEL)}
+                      className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all border ${postType === PostType.CAROUSEL ? 'bg-brand-600 border-neon/50 text-white shadow-[0_0_10px_rgba(0,255,255,0.2)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                      Carrossel
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-slate-400 mb-2">
-                    Descrição do Post
+                    {postType === PostType.CAROUSEL ? 'Descrição Geral da Campanha' : 'Descrição do Post'}
                   </label>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Ex: Um post anunciando a promoção de verão com iluminação suave, fundo minimalista e texto chamativo..."
+                    placeholder={postType === PostType.CAROUSEL ? "Ex: Um carrossel de dicas para marketing digital..." : "Ex: Um post anunciando a promoção de verão com iluminação suave, fundo minimalista e texto chamativo..."}
                     className="w-full bg-slate-950/80 border border-slate-700 rounded-xl p-4 text-slate-200 placeholder-slate-600 focus:ring-2 focus:ring-neon focus:border-neon outline-none resize-none h-32 text-sm leading-relaxed transition-all shadow-inner"
                   />
+
+                  {postType === PostType.CAROUSEL && (
+                    <div className="mt-4 space-y-3">
+                      <label className="block text-sm font-medium text-slate-400 mb-2">Slides do Carrossel ({carouselSlides.length}/10)</label>
+                      {carouselSlides.map((slide, idx) => (
+                        <div key={slide.id} className="flex gap-2 items-start">
+                          <div className="w-6 h-6 shrink-0 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-xs mt-1 border border-slate-700">{idx + 1}</div>
+                          <textarea
+                            value={slide.instruction}
+                            onChange={(e) => handleUpdateSlide(slide.id, e.target.value)}
+                            placeholder={`Instrução específica para a imagem ${idx + 1}...`}
+                            className="flex-1 bg-slate-950/80 border border-slate-700 rounded-lg p-3 text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-neon focus:border-neon outline-none resize-none h-16 text-xs transition-all shadow-inner"
+                          />
+                          <button
+                            onClick={() => handleRemoveSlide(slide.id)}
+                            disabled={carouselSlides.length <= 2}
+                            className={`p-2 rounded-lg transition-all ${carouselSlides.length <= 2 ? 'opacity-50 cursor-not-allowed text-slate-600' : 'text-slate-400 hover:text-red-400 hover:bg-red-400/10'}`}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={handleAddSlide}
+                        disabled={carouselSlides.length >= 10}
+                        className="w-full py-2 border border-dashed border-slate-700 text-slate-400 hover:text-neon hover:border-neon/50 rounded-lg text-sm font-medium transition-all"
+                      >
+                        + Adicionar Slide
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -285,7 +383,7 @@ const App: React.FC = () => {
               <div className="flex-1 rounded-xl bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] bg-slate-950 flex items-center justify-center p-8 relative">
 
                 {/* EMPTY STATE */}
-                {!generationState.resultImage && !generationState.isGenerating && (
+                {!generationState.resultImage && (!generationState.resultImages || generationState.resultImages.length === 0) && !generationState.isGenerating && (
                   <div className="text-center space-y-4 max-w-sm">
                     <div className="w-20 h-20 bg-slate-900 rounded-full mx-auto flex items-center justify-center border border-slate-800 shadow-inner group">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-slate-600 group-hover:text-neon transition-colors duration-500">
@@ -296,7 +394,7 @@ const App: React.FC = () => {
                       Estúdio de Criação
                     </h3>
                     <p className="text-slate-500 text-sm">
-                      Configure a identidade da marca, adicione um produto e crie posts incríveis em segundos.
+                      Configure a identidade da marca, adicione um produto e crie posts únicos ou carrosséis incríveis em segundos.
                     </p>
                     <div className="pt-2">
                       <p className="text-xs text-slate-600">
@@ -327,26 +425,69 @@ const App: React.FC = () => {
                 )}
 
                 {/* RESULT IMAGE */}
-                {generationState.resultImage && !generationState.isGenerating && (
-                  <div className="relative group shadow-[0_0_50px_rgba(0,76,153,0.3)] transition-transform duration-500 ease-out hover:scale-[1.01]">
-                    <img
-                      src={generationState.resultImage}
-                      alt="Generated Post"
-                      className="max-h-[70vh] w-auto rounded-lg object-contain border border-brand-800"
-                    />
-                    <div className="absolute -bottom-14 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                      <a
-                        href={generationState.resultImage}
-                        download="haremagic-post.png"
-                        className="bg-brand-600 hover:bg-brand-500 text-white border border-neon/50 px-6 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all flex items-center gap-2"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 12.75l15 15m0 0l-3.75-3.75M12 2.25v13.5" />
-                        </svg>
-                        Baixar Imagem
-                      </a>
-                    </div>
-                  </div>
+                {!generationState.isGenerating && (
+                  <>
+                    {(postType === PostType.SINGLE && generationState.resultImage) && (
+                      <div className="relative group shadow-[0_0_50px_rgba(0,76,153,0.3)] transition-transform duration-500 ease-out hover:scale-[1.01]">
+                        <img
+                          src={generationState.resultImage}
+                          alt="Generated Post"
+                          className="max-h-[70vh] w-auto rounded-lg object-contain border border-brand-800"
+                        />
+                        <div className="absolute -bottom-14 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                          <a
+                            href={generationState.resultImage}
+                            download="haremagic-post.png"
+                            className="bg-brand-600 hover:bg-brand-500 text-white border border-neon/50 px-6 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all flex items-center gap-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 12.75l15 15m0 0l-3.75-3.75M12 2.25v13.5" />
+                            </svg>
+                            Baixar Imagem
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {(postType === PostType.CAROUSEL && generationState.resultImages && generationState.resultImages.length > 0) && (
+                      <div className="relative w-full max-h-[70vh] flex flex-col items-center group shadow-[0_0_50px_rgba(0,76,153,0.3)]">
+                        <img
+                          src={generationState.resultImages[currentSlideIndex]}
+                          alt={`Generated Slide ${currentSlideIndex + 1}`}
+                          className="max-h-[60vh] w-auto rounded-lg object-contain border border-brand-800"
+                        />
+                        <div className="w-full flex justify-between items-center px-4 mt-6">
+                          <button
+                            onClick={() => setCurrentSlideIndex(prev => Math.max(0, prev - 1))}
+                            disabled={currentSlideIndex === 0}
+                            className="px-5 py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-full disabled:opacity-30 text-white font-medium transition-colors"
+                          >
+                            ← Anterior
+                          </button>
+                          <span className="text-neon font-semibold bg-brand-900/40 px-4 py-1.5 rounded-full border border-neon/20 shadow-[0_0_10px_rgba(0,255,255,0.1)]">Slide {currentSlideIndex + 1} de {generationState.resultImages.length}</span>
+                          <button
+                            onClick={() => setCurrentSlideIndex(prev => Math.min(generationState.resultImages!.length - 1, prev + 1))}
+                            disabled={currentSlideIndex === generationState.resultImages.length - 1}
+                            className="px-5 py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-full disabled:opacity-30 text-white font-medium transition-colors"
+                          >
+                            Próximo →
+                          </button>
+                        </div>
+                        <div className="absolute top-2 right-2 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <a
+                            href={generationState.resultImages[currentSlideIndex]}
+                            download={`haremagic-carousel-slide-${currentSlideIndex + 1}.png`}
+                            className="bg-brand-600 hover:bg-brand-500 text-white border border-neon/50 px-5 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all flex items-center gap-2 text-sm"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 12.75l15 15m0 0l-3.75-3.75M12 2.25v13.5" />
+                            </svg>
+                            Baixar
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </section>

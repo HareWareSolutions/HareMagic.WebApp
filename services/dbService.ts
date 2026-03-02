@@ -68,11 +68,11 @@ export const dbService = {
   },
 
   // Chamado antes de gerar: Verifica se tem saldo
-  canGenerate: async (email: string): Promise<boolean> => {
+  canGenerate: async (email: string, amount: number = 1): Promise<boolean> => {
     try {
       const user = await dbService.getUser(email);
       const limit = PLANS[user.plan].limit;
-      return user.generationsUsed < limit;
+      return user.generationsUsed + amount <= limit;
     } catch (e) {
       console.error("Error checking quota:", e);
       return false;
@@ -80,11 +80,11 @@ export const dbService = {
   },
 
   // Chamado após gerar com sucesso: Incrementa contador
-  incrementUsage: async (email: string): Promise<UserProfile> => {
+  incrementUsage: async (email: string, amount: number = 1): Promise<UserProfile> => {
     const response = await fetch('/api/usage/increment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email, amount })
     });
 
     try {

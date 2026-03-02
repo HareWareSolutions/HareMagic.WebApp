@@ -73,20 +73,43 @@ export const generateBrandPost = async (
 
     parts.push({ text: systemPrompt });
 
-    // Using gemini-3-pro-image-preview for high quality image generation
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-image-preview",
-      contents: { parts },
-      config: {
-        imageConfig: {
-          aspectRatio: apiRatio,
-          imageSize: "1K", // High quality
-        },
-      },
-    });
+    // Try up to 3 times with exponential backoff for 503 errors
+    let attempt = 0;
+    const maxAttempts = 3;
+    let response;
+
+    while (attempt < maxAttempts) {
+      try {
+        // Using gemini-3-pro-image-preview for high quality image generation
+        response = await ai.models.generateContent({
+          model: "gemini-3-pro-image-preview",
+          contents: { parts },
+          config: {
+            imageConfig: {
+              aspectRatio: apiRatio,
+              imageSize: "1K", // High quality
+            },
+          },
+        });
+        break; // If successful, exit loop
+      } catch (err: any) {
+        attempt++;
+        const isOverloaded = err?.status === 503 || err?.message?.includes('high demand') || err?.message?.includes('503');
+        if (isOverloaded && attempt < maxAttempts) {
+          console.warn(`Modelo de IA sobrecarregado (tentativa ${attempt}). Tentando novamente em ${attempt * 2} segundos...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        } else {
+          // If we run out of retries or it's a different error, throw it
+          if (isOverloaded) {
+            throw new Error("Os servidores da IA estão recebendo um alto volume de requisições. Por favor, tente novamente em alguns minutos.");
+          }
+          throw err;
+        }
+      }
+    }
 
     // Extract image from response
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
+    for (const part of response?.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         const base64EncodeString = part.inlineData.data;
         return `data:image/png;base64,${base64EncodeString}`;
@@ -95,8 +118,51 @@ export const generateBrandPost = async (
 
     throw new Error("Nenhuma imagem foi gerada pelo modelo.");
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao gerar imagem:", error);
-    throw error;
+    // Preserva a mensagem de erro customizada, se existir
+    if (error?.message?.includes("Os servidores da IA estão recebendo")) {
+      throw error;
+    }
+    throw new Error(error.message || "Ocorreu um erro ao conectar com a IA. Tente novamente.");
   }
+};
+
+export const generateCarouselPost = async (
+  styleAssets: CreativeAsset[],
+  productAsset: CreativeAsset | null,
+  generalPrompt: string,
+  carouselSlides: { instruction: string }[],
+  ratio: AspectRatio,
+  onProgress?: (progress: string) => void
+): Promise<string[]> => {
+  const generatedImages: string[] = [];
+
+  for (let i = 0; i < carouselSlides.length; i++) {
+    const slide = carouselSlides[i];
+
+    if (onProgress) {
+      onProgress(`Gerando slide ${i + 1} de ${carouselSlides.length}...`);
+    }
+
+    const slideSpecificPrompt = `
+      PROMPT GERAL DA CAMPANHA: "${generalPrompt}"
+      
+      ATENÇÃO: Esta imagem é a parte ${i + 1} de um carrossel de ${carouselSlides.length} imagens.
+      Mantenha o mesmo personagem/produto e estilo de arte.
+      
+      INSTRUÇÃO ESPECÍFICA PARA ESTE SLIDE (${i + 1}): "${slide.instruction}"
+    `;
+
+    const slideImageBase64 = await generateBrandPost(
+      styleAssets,
+      productAsset,
+      slideSpecificPrompt,
+      ratio
+    );
+
+    generatedImages.push(slideImageBase64);
+  }
+
+  return generatedImages;
 };

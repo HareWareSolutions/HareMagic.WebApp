@@ -226,7 +226,7 @@ const PLANS = {
 
 // Increment Usage
 app.post('/api/usage/increment', (req, res) => {
-    const { email } = req.body;
+    const { email, amount = 1 } = req.body;
 
     if (!email) {
         return res.status(400).json({ error: 'Email is required' });
@@ -242,21 +242,21 @@ app.post('/api/usage/increment', (req, res) => {
         // Server-side Limit Validation
         const planLimit = PLANS[user.plan]?.limit || 5; // Default to Talismã if unknown
 
-        if (user.generationsUsed >= planLimit) {
+        if (user.generationsUsed + amount > planLimit) {
             return res.status(403).json({
-                error: `Limite do plano atingido no servidor (${user.generationsUsed}/${planLimit}). Upgrade necessário.`
+                error: `Limite do plano atingido no servidor (${user.generationsUsed}/${planLimit}). Precisaria de ${amount} créditos. Upgrade necessário.`
             });
         }
 
         // Increment
-        user.generationsUsed += 1;
+        user.generationsUsed += amount;
 
         db.run(
             "UPDATE users SET generationsUsed = ?, lastResetDate = ? WHERE email = ?",
             [user.generationsUsed, user.lastResetDate, email],
             (updateErr) => {
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
-                res.json(user);
+                res.json({ ...user });
             }
         );
     });
