@@ -166,3 +166,115 @@ export const generateCarouselPost = async (
 
   return generatedImages;
 };
+
+export const editBrandPost = async (
+  styleAssets: CreativeAsset[],
+  productAsset: CreativeAsset | null,
+  targetImageBase64WithPrefix: string,
+  editInstruction: string,
+  ratio: AspectRatio
+): Promise<string> => {
+  const ai = getAIClient();
+  try {
+    const apiRatio = IMAGE_RATIO_MAP[ratio] || "1:1";
+    const parts: any[] = [];
+
+    // 1. Adicionar imagens de ESTILO
+    styleAssets.forEach((asset) => {
+      parts.push({
+        inlineData: {
+          data: asset.base64,
+          mimeType: asset.mimeType,
+        },
+      });
+    });
+
+    // 2. Adicionar imagem do PRODUTO (se houver)
+    if (productAsset) {
+      parts.push({
+        inlineData: {
+          data: productAsset.base64,
+          mimeType: productAsset.mimeType,
+        },
+      });
+    }
+
+    // 3. Adicionar a imagem que queremos editar
+    // targetImageBase64WithPrefix looks like "data:image/png;base64,iVBORw0KGgo..."
+    const [mimePrefix, base64Data] = targetImageBase64WithPrefix.split(',');
+    const mimeType = mimePrefix.replace('data:', '').replace(';base64', '') || 'image/png';
+
+    parts.push({
+      inlineData: {
+        data: base64Data,
+        mimeType: mimeType,
+      },
+    });
+
+    // 4. Prompt para Edição
+    let systemPrompt = `
+      Você é um especialista em design gráfico e identidade visual de marcas.
+      
+      CONTEXTO:
+      As primeiras imagens fornecidas são REFERÊNCIAS DO ESTILO e (opcionalmente) DE PRODUTO.
+      
+      A penúltima ou última imagem fornecida é o POST ATUAL gerado que precisa ser EDITADO.
+      Você DEVE gerar uma nova versão desta última imagem exata, aplicando as modificações solicitadas pelo usuário abaixo, enquanto preserva ao máximo o contexto, cenário e elementos que não foram mencionados na edição.
+      
+      INSTRUÇÃO DE EDIÇÃO DO USUÁRIO: "${editInstruction}"
+      
+      Requisito: Alta qualidade fotográfica ou render 3D, consistência visual extrema com o estilo da marca fornecido.
+    `;
+
+    parts.push({ text: systemPrompt });
+
+    let attempt = 0;
+    const maxAttempts = 3;
+    let response;
+
+    while (attempt < maxAttempts) {
+      try {
+        response = await ai.models.generateContent({
+          model: "gemini-3-pro-image-preview",
+          contents: { parts },
+          config: {
+            imageConfig: {
+              aspectRatio: apiRatio,
+              imageSize: "1K", // High quality
+            },
+          },
+        });
+        break; // If successful, exit loop
+      } catch (err: any) {
+        attempt++;
+        const isOverloaded = err?.status === 503 || err?.message?.includes('high demand') || err?.message?.includes('503');
+        if (isOverloaded && attempt < maxAttempts) {
+          console.warn(`Modelo de IA sobrecarregado (tentativa ${attempt}). Tentando novamente em ${attempt * 2} segundos...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        } else {
+          if (isOverloaded) {
+            throw new Error("Os servidores da IA estão recebendo um alto volume de requisições. Por favor, tente novamente em alguns minutos.");
+          }
+          throw err;
+        }
+      }
+    }
+
+    // Extract image from response
+    for (const part of response?.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        const base64EncodeString = part.inlineData.data;
+        return `data:image/png;base64,${base64EncodeString}`;
+      }
+    }
+
+    throw new Error("Nenhuma imagem revisada foi gerada pelo modelo.");
+
+  } catch (error: any) {
+    console.error("Erro ao editar imagem:", error);
+    if (error?.message?.includes("Os servidores da IA estão recebendo")) {
+      throw error;
+    }
+    throw new Error(error.message || "Ocorreu um erro ao conectar com a IA para edição. Tente novamente.");
+  }
+};

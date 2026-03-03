@@ -5,7 +5,7 @@ import { ProductUploader } from './components/ProductUploader';
 import { Gallery } from './components/Gallery';
 import { RatioSelector } from './components/RatioSelector';
 import { AspectRatio, CreativeAsset, GenerationState, UserProfile, PostType, CarouselSlide } from './types';
-import { generateBrandPost, generateCarouselPost } from './services/geminiService';
+import { generateBrandPost, generateCarouselPost, editBrandPost } from './services/geminiService';
 import { dbService, PLANS } from './services/dbService';
 import { Login } from './components/Login';
 import { SYSTEM_LOGO_URL, APP_NAME } from './constants';
@@ -26,6 +26,11 @@ const App: React.FC = () => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   const [ratio, setRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
+
+  // Edit State
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editPrompt, setEditPrompt] = useState<string>('');
+
   const [generationState, setGenerationState] = useState<GenerationState>({
     isGenerating: false,
     resultImage: null,
@@ -119,11 +124,63 @@ const App: React.FC = () => {
       });
 
     } catch (e: any) {
-      setGenerationState({
+      setGenerationState(s => ({
+        ...s,
         isGenerating: false,
-        resultImage: null,
         error: e.message || "Erro ao gerar. Tente novamente."
-      });
+      }));
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!currentUser) return;
+    if (!editPrompt.trim()) return;
+
+    // 1. Verificar Cota no Banco de Dados
+    const canGenerate = await dbService.canGenerate(currentUser.email, 1);
+    if (!canGenerate) {
+      setGenerationState(s => ({ ...s, error: "Limite insuficiente para edição. Upgrade necessário." }));
+      setIsEditing(false);
+      return;
+    }
+
+    setGenerationState(s => ({ ...s, isGenerating: true, progress: 'Editando imagem...', error: null }));
+
+    try {
+      let targetImage: string | null = null;
+      if (postType === PostType.SINGLE && generationState.resultImage) {
+        targetImage = generationState.resultImage;
+      } else if (postType === PostType.CAROUSEL && generationState.resultImages) {
+        targetImage = generationState.resultImages[currentSlideIndex];
+      }
+
+      if (!targetImage) throw new Error("Nenhuma imagem para editar.");
+
+      const newImage = await editBrandPost(assets, productImage, targetImage, editPrompt, ratio);
+
+      // 2. Consumir Crédito no Banco de Dados (Sucesso)
+      const updatedUser = await dbService.incrementUsage(currentUser.email, 1);
+      setCurrentUser(updatedUser);
+
+      if (postType === PostType.SINGLE) {
+        setGenerationState(s => ({ ...s, isGenerating: false, resultImage: newImage }));
+      } else {
+        setGenerationState(s => {
+          const newArray = [...(s.resultImages || [])];
+          newArray[currentSlideIndex] = newImage;
+          return { ...s, isGenerating: false, resultImages: newArray };
+        });
+      }
+
+      setEditPrompt('');
+      setIsEditing(false);
+
+    } catch (e: any) {
+      setGenerationState(s => ({
+        ...s,
+        isGenerating: false,
+        error: e.message || "Erro ao editar. Tente novamente."
+      }));
     }
   };
 
@@ -434,16 +491,27 @@ const App: React.FC = () => {
                           alt="Generated Post"
                           className="max-h-[70vh] w-auto rounded-lg object-contain border border-brand-800"
                         />
-                        <div className="absolute -bottom-14 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                        <div className="absolute top-2 right-2 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className="bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white px-4 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,0,0,0.4)] transition-all flex items-center gap-2 text-sm mr-2 aspect-square md:aspect-auto"
+                            title="Editar Imagem"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                            </svg>
+                            <span className="hidden md:inline">Editar</span>
+                          </button>
                           <a
                             href={generationState.resultImage}
                             download="haremagic-post.png"
-                            className="bg-brand-600 hover:bg-brand-500 text-white border border-neon/50 px-6 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all flex items-center gap-2"
+                            className="bg-brand-600 hover:bg-brand-500 text-white border border-neon/50 px-5 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all flex items-center gap-2 text-sm"
+                            title="Baixar Imagem"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 12.75l15 15m0 0l-3.75-3.75M12 2.25v13.5" />
                             </svg>
-                            Baixar Imagem
+                            <span className="hidden md:inline">Baixar Imagem</span>
                           </a>
                         </div>
                       </div>
@@ -458,7 +526,7 @@ const App: React.FC = () => {
                         />
                         <div className="w-full flex justify-between items-center px-4 mt-6">
                           <button
-                            onClick={() => setCurrentSlideIndex(prev => Math.max(0, prev - 1))}
+                            onClick={() => { setCurrentSlideIndex(prev => Math.max(0, prev - 1)); setIsEditing(false); }}
                             disabled={currentSlideIndex === 0}
                             className="px-5 py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-full disabled:opacity-30 text-white font-medium transition-colors"
                           >
@@ -466,7 +534,7 @@ const App: React.FC = () => {
                           </button>
                           <span className="text-neon font-semibold bg-brand-900/40 px-4 py-1.5 rounded-full border border-neon/20 shadow-[0_0_10px_rgba(0,255,255,0.1)]">Slide {currentSlideIndex + 1} de {generationState.resultImages.length}</span>
                           <button
-                            onClick={() => setCurrentSlideIndex(prev => Math.min(generationState.resultImages!.length - 1, prev + 1))}
+                            onClick={() => { setCurrentSlideIndex(prev => Math.min(generationState.resultImages!.length - 1, prev + 1)); setIsEditing(false); }}
                             disabled={currentSlideIndex === generationState.resultImages.length - 1}
                             className="px-5 py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-full disabled:opacity-30 text-white font-medium transition-colors"
                           >
@@ -474,16 +542,59 @@ const App: React.FC = () => {
                           </button>
                         </div>
                         <div className="absolute top-2 right-2 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className="bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white px-4 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,0,0,0.4)] transition-all flex items-center gap-2 text-sm mr-2 aspect-square md:aspect-auto"
+                            title="Editar Imagem"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                            </svg>
+                            <span className="hidden md:inline">Editar</span>
+                          </button>
                           <a
                             href={generationState.resultImages[currentSlideIndex]}
                             download={`haremagic-carousel-slide-${currentSlideIndex + 1}.png`}
                             className="bg-brand-600 hover:bg-brand-500 text-white border border-neon/50 px-5 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all flex items-center gap-2 text-sm"
+                            title="Baixar Imagem"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 12.75l15 15m0 0l-3.75-3.75M12 2.25v13.5" />
                             </svg>
-                            Baixar
+                            <span className="hidden md:inline">Baixar</span>
                           </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div className="w-full mt-6 bg-slate-900 border border-neon/30 p-4 rounded-xl shadow-[0_0_20px_rgba(0,255,255,0.1)] relative">
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          className="absolute top-2 right-2 text-slate-500 hover:text-white"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                        <label className="block text-sm font-semibold text-neon mb-2">Editar Imagem Atual</label>
+                        <p className="text-xs text-slate-400 mb-3">Dê uma nova instrução baseada nesta imagem. A edição consumirá 1 crédito.</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:border-neon focus:ring-1 focus:ring-neon outline-none text-white"
+                            placeholder="Ex: Troque a cor do fundo para azul oceano"
+                            value={editPrompt}
+                            onChange={(e) => setEditPrompt(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleEdit(); }}
+                          />
+                          <button
+                            onClick={handleEdit}
+                            disabled={!editPrompt.trim()}
+                            className="bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+                          >
+                            Atualizar
+                          </button>
                         </div>
                       </div>
                     )}
