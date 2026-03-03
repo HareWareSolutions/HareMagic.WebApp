@@ -53,6 +53,27 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePostTypeChange = (type: PostType) => {
+    if (type !== postType) {
+      setPostType(type);
+      setPrompt('');
+      setCurrentSlideIndex(0);
+      setCarouselSlides([
+        { id: '1', instruction: '' },
+        { id: '2', instruction: '' }
+      ]);
+      setGenerationState(s => ({
+        ...s,
+        resultImage: null,
+        resultImages: [],
+        error: null,
+        progress: ''
+      }));
+      setIsEditing(false);
+      setEditPrompt('');
+    }
+  };
+
   const handleAddSlide = () => {
     if (carouselSlides.length >= 10) return;
     setCarouselSlides(prev => [...prev, { id: Date.now().toString(), instruction: '' }]);
@@ -312,13 +333,13 @@ const App: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-400 mb-2">Tipo de Post</label>
                   <div className="flex gap-2 mb-4">
                     <button
-                      onClick={() => setPostType(PostType.SINGLE)}
+                      onClick={() => handlePostTypeChange(PostType.SINGLE)}
                       className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all border ${postType === PostType.SINGLE ? 'bg-brand-600 border-neon/50 text-white shadow-[0_0_10px_rgba(0,255,255,0.2)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                     >
                       Post Único
                     </button>
                     <button
-                      onClick={() => setPostType(PostType.CAROUSEL)}
+                      onClick={() => handlePostTypeChange(PostType.CAROUSEL)}
                       className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all border ${postType === PostType.CAROUSEL ? 'bg-brand-600 border-neon/50 text-white shadow-[0_0_10px_rgba(0,255,255,0.2)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                     >
                       Carrossel
