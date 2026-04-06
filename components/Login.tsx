@@ -8,7 +8,6 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,13 +19,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      if (isRegistering) {
-        const user = await dbService.register(email, password);
-        onLogin(user);
-      } else {
-        const user = await dbService.login(email, password);
-        onLogin(user);
-      }
+      const user = await dbService.login(email, password);
+      onLogin(user);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro.');
     } finally {
@@ -51,7 +45,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           />
           <h1 className="text-3xl font-bold text-white tracking-tight">Hare<span className="text-neon-glow">Magic</span></h1>
           <p className="text-slate-400 mt-2 text-center text-sm">
-            {isRegistering ? 'Crie sua conta e comece a criar' : 'Inteligência Artificial para sua marca'}
+            Inteligência Artificial para sua marca
           </p>
         </div>
 
@@ -106,25 +100,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <span>Processando...</span>
               </>
             ) : (
-              <span>{isRegistering ? 'Criar Conta Grátis' : 'Entrar na Plataforma'}</span>
+              <span>Entrar na Plataforma</span>
             )}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-slate-500 text-sm">
-            {isRegistering ? 'Já tem uma conta?' : 'Ainda não tem acesso?'}
-            <button
-              onClick={() => {
-                setIsRegistering(!isRegistering);
-                setError(null);
-                setEmail('');
-                setPassword('');
-              }}
-              className="ml-2 text-neon hover:text-brand-300 font-medium transition-colors hover:underline"
-            >
-              {isRegistering ? 'Fazer Login' : 'Criar Conta'}
-            </button>
+          <p className="text-slate-500 text-xs">
+            Acesso exclusivo para membros autorizados.
           </p>
         </div>
       </div>

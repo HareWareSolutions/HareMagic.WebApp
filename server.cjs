@@ -92,60 +92,9 @@ function checkAndResetMonthlyQuota(user) {
 // Get User (Login/Fetch)
 // Auth Routes
 
-// Register
+// Register (DISABLED)
 app.post('/api/auth/register', (req, res) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and Password are required' });
-    }
-
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-
-    // Check IP limit (e.g., max 2 accounts per 24h)
-    db.get(
-        "SELECT COUNT(*) as count FROM ip_logs WHERE ip = ? AND created_at > datetime('now', '-1 day')",
-        [ip],
-        (err, row) => {
-            if (err) {
-                console.error("Error checking IP logs:", err);
-                // Continue on error to not block legit users if DB fails check
-            }
-
-            if (row && row.count >= 2) {
-                return res.status(429).json({ error: 'Limite de criação de contas atingido para este dispositivo. Tente novamente amanhã.' });
-            }
-
-            const newUser = {
-                email,
-                password, // In a real app, hash this!
-                name: email.split('@')[0],
-                plan: 'talisma', // Default plan as requested
-                generationsUsed: 0,
-                lastResetDate: new Date().toISOString()
-            };
-
-            db.run(
-                "INSERT INTO users (email, password, name, plan, generationsUsed, lastResetDate) VALUES (?, ?, ?, ?, ?, ?)",
-                [newUser.email, newUser.password, newUser.name, newUser.plan, newUser.generationsUsed, newUser.lastResetDate],
-                function (insertErr) {
-                    if (insertErr) {
-                        if (insertErr.message.includes('UNIQUE constraint failed')) {
-                            return res.status(400).json({ error: 'User already exists' });
-                        }
-                        return res.status(500).json({ error: insertErr.message });
-                    }
-
-                    // Log IP
-                    db.run("INSERT INTO ip_logs (ip, created_at) VALUES (?, datetime('now'))", [ip]);
-
-                    // Return user without password
-                    const { password, ...userWithoutPass } = newUser;
-                    res.json(userWithoutPass);
-                }
-            );
-        }
-    );
+    return res.status(403).json({ error: 'A criação de novas contas foi desativada temporariamente pelo administrador.' });
 });
 
 // Login
